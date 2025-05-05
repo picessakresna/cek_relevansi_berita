@@ -1,3 +1,17 @@
+# --- Fix untuk asyncio error (streamlit + torch) ---
+import asyncio
+import sys
+
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+else:
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+# --- Import utama ---
 import streamlit as st
 from streamlit_extras.switch_page_button import switch_page
 import re
@@ -7,31 +21,28 @@ import torch
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 from transformers import BertTokenizer, BertForSequenceClassification
-import torch
-from huggingface_hub import hf_hub_download
 import torch.nn.functional as F
+from huggingface_hub import hf_hub_download
 import os
 
-# Load tokenizer, config, dan model
+# --- Load tokenizer dan model untuk embedding & summarizer ---
 custom_config = AutoConfig.from_pretrained("indobenchmark/indobert-base-p1")
 custom_config.output_hidden_states = True
 
 custom_tokenizer = AutoTokenizer.from_pretrained("indobenchmark/indobert-base-p1")
 custom_model = AutoModel.from_pretrained("indobenchmark/indobert-base-p1", config=custom_config)
 
-# Gunakan tokenizer dan model khusus untuk embedding
 embedding_tokenizer = AutoTokenizer.from_pretrained("indobenchmark/indobert-base-p1", use_fast=True)
 embedding_model = AutoModel.from_pretrained("indobenchmark/indobert-base-p1")
 
+# --- Load model klasifikasi dan bobot ---
 tokenizer = BertTokenizer.from_pretrained("indobenchmark/indobert-base-p2")
+model = BertForSequenceClassification.from_pretrained("indobenchmark/indobert-base-p2")
 
-# Memuat model BERT untuk klasifikasi dengan jumlah label yang disesuaikan
-model = BertForSequenceClassification.from_pretrained("indobenchmark/indobert-base-p2", num_labels=3)
-
-# Menyesuaikan ukuran embedding model agar sesuai dengan ukuran kosakata checkpoint
+# Resize embedding (jika vocab bertambah)
 model.resize_token_embeddings(50000)
 
-# Memuat bobot model yang telah disimpan
+# Load bobot training kustom
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 token = os.environ.get("HF_TOKEN")
 model_path = hf_hub_download(
@@ -42,31 +53,26 @@ model_path = hf_hub_download(
 model.load_state_dict(torch.load(model_path, map_location=device), strict=False)
 model.to(device)
 
-# Inisialisasi model summarizer
+# --- Summarizer ---
 summarizer_model = Summarizer(custom_model=custom_model, custom_tokenizer=custom_tokenizer)
 
-# Konfigurasi halaman Streamlit
+# --- Konfigurasi Streamlit ---
 st.set_page_config(
     page_title="Klasifikasi Judul dan Berita Online",
     page_icon="📰",
     initial_sidebar_state="collapsed",
 )
 
-# Judul aplikasi
-st.markdown(
-    "<h1 style='text-align: center;'>KLASIFIKASI<br>JUDUL DAN BERITA ONLINE</h1>",
-    unsafe_allow_html=True,
-)
+st.markdown("<h1 style='text-align: center;'>KLASIFIKASI<br>JUDUL DAN BERITA ONLINE</h1>", unsafe_allow_html=True)
 
-# Ambil data dari session state
+# --- Ambil data dari session state ---
 title = st.session_state.get("title", "Judul belum tersedia")
 content = st.session_state.get("content", "Konten belum tersedia")
 source = st.session_state.get("source", "suara")
 
-# Fungsi preprocessing
+# --- Preprocessing ---
 def remove_opening_sentences(text, source):
-    if not isinstance(text, str):
-        return text
+    if not isinstance(text, str): return text
     if source == "kompas":
         text = re.sub(r'^[A-Z\s]+,\s*KOMPAS\.com\s*[-–]?\s*', '', text)
         text = re.sub(r'KOMPAS\.com\s*[-–]?\s*', '', text)
@@ -75,25 +81,19 @@ def remove_opening_sentences(text, source):
     return text
 
 def format_date(text):
-    if not isinstance(text, str):
-        return text
-
+    if not isinstance(text, str): return text
     def replace_date(match):
         day, month, year = match.group(1), match.group(2), match.group(3) if match.lastindex == 3 else None
         month_names = ["Januari", "Februari", "Maret", "April", "Mei", "Juni",
                        "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
         month_index = int(month) - 1
-        if 0 <= month_index < len(month_names):
-            return f"{day} {month_names[month_index]} {year}" if year else f"{day} {month_names[month_index]}"
-        return match.group(0)
-
+        return f"{day} {month_names[month_index]} {year}" if year else f"{day} {month_names[month_index]}"
     text = re.sub(r'\((\d{1,2})/(\d{1,2})/(\d{4})\)', replace_date, text)
     text = re.sub(r'\((\d{1,2})/(\d{1,2})\)', replace_date, text)
     return text
 
 def clean_text(text):
-    if not isinstance(text, str):
-        return text
+    if not isinstance(text, str): return text
     text = re.sub(r'Baca juga:.*?(?=\n|$)', '', text)
     text = re.sub(r'\nBaca Juga:.*?(\n|$)', '', text)
     text = re.sub(r'ADVERTISEMENT\s+.*?SCROLL TO CONTINUE WITH CONTENT', '', text, flags=re.DOTALL)
@@ -106,15 +106,13 @@ def clean_text(text):
 def preprocess_text(text):
     return text.strip()
 
-# Preprocess judul dan konten
+# --- Terapkan preprocessing ---
 processed_title = clean_text(format_date(remove_opening_sentences(title, source)))
 processed_content = clean_text(format_date(remove_opening_sentences(content, source)))
 
-# Ringkasan
+# --- Ringkasan ---
 def summarize_article(title, content):
-    preprocessed_title = preprocess_text(title)
-    preprocessed_content = preprocess_text(content)
-    combined_text = f"{preprocessed_title}. {preprocessed_content}"
+    combined_text = f"{preprocess_text(title)}. {preprocess_text(content)}"
     summary = summarizer_model(combined_text, ratio=0.5)
     summary_lines = summary.strip().split('. ')
     summary_title = summary_lines[0] if summary_lines else ""
@@ -123,43 +121,34 @@ def summarize_article(title, content):
 
 summary_title, summary_content = summarize_article(processed_title, processed_content)
 
-# Ambil embedding untuk similarity
+# --- Embedding & Similarity ---
 def get_embedding(text):
     tokens = embedding_tokenizer(text, padding='max_length', max_length=256, truncation=True, return_tensors="pt")
     with torch.no_grad():
-        outputs = embedding_model(input_ids=tokens['input_ids'])
-    embedding = outputs.last_hidden_state.mean(dim=1)
-    return embedding.squeeze().numpy()
+        outputs = embedding_model(input_ids=tokens['input_ids'], attention_mask=tokens['attention_mask'])
+    return outputs.last_hidden_state.mean(dim=1).squeeze().numpy()
 
 title_embedding = get_embedding(summary_title)
 content_embedding = get_embedding(summary_content)
 similarity = cosine_similarity([title_embedding], [content_embedding])[0][0]
 
+# --- Klasifikasi ---
 def classify_title_content(title, content):
-    # Menggabungkan judul dan konten
     combined_text = f"{title} [SEP] {content}"
-    
-    # Melakukan tokenisasi input
     inputs = tokenizer(combined_text, return_tensors="pt", max_length=512, truncation=True, padding="max_length")
     inputs = {k: v.to(device) for k, v in inputs.items()}
-    
-    # Melakukan inferensi
     with torch.no_grad():
         outputs = model(**inputs)
         logits = outputs.logits
         probabilities = F.softmax(logits, dim=1)
         predicted_class = torch.argmax(probabilities, dim=1).item()
         confidence = torch.max(probabilities).item()
-    
-    # Menentukan label berdasarkan prediksi
     labels = {0: "berlebihan", 1: "nonrelevan", 2: "relevan"}
-    predicted_label = labels[predicted_class]
-    
-    return predicted_label, confidence
+    return labels[predicted_class], confidence
 
 label, confidence = classify_title_content(summary_title, summary_content)
 
-# Tampilkan hasil ke halaman
+# --- Tampilkan hasil ---
 st.markdown("<br><br>", unsafe_allow_html=True)
 st.markdown("<h4 style='text-align: center;'>Hasil Klasifikasi</h4>", unsafe_allow_html=True)
 st.markdown(f"<h5 style='text-align: center;'>{label}</h5>", unsafe_allow_html=True)
@@ -176,13 +165,12 @@ st.markdown("<br>", unsafe_allow_html=True)
 st.markdown("<h4 style='text-align: center;'>Isi Ringkasan</h4>", unsafe_allow_html=True)
 st.markdown(f"<div style='text-align: center;'>{summary_content}</div>", unsafe_allow_html=True)
 
-
+# --- Navigasi Halaman ---
 pages = {
     "🔗 Input dengan Link": "./pages/link.py",
     "✍️ Input dengan Konten": "./pages/content.py"
 }
 
-# Tombol untuk pindah halaman
 colA, colB, colC = st.columns([2, 1, 2])
 with colB:
     if st.button("🔗 Input dengan Link", use_container_width=True):
