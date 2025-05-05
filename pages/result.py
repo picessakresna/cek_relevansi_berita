@@ -177,9 +177,15 @@ st.markdown("<h4 style='text-align: center;'>Isi Ringkasan</h4>", unsafe_allow_h
 st.markdown(f"<div style='text-align: center;'>{summary_content}</div>", unsafe_allow_html=True)
 
 
-# Tombol untuk input ulang
-st.markdown("<br><br>", unsafe_allow_html=True)
-col4, col5, col6 = st.columns([1, 2, 1])
-with col5:
-    if st.button("Input Ulang", use_container_width=True):
-        switch_page("link")
+pages = {
+    "🔗 Input dengan Link": "./pages/link.py",
+    "✍️ Input dengan Konten": "./pages/content.py"
+}
+
+# Tombol untuk pindah halaman
+colA, colB, colC = st.columns([2, 1, 2])
+with colB:
+    if st.button("🔗 Input dengan Link", use_container_width=True):
+        st.switch_page(pages["🔗 Input dengan Link"])
+    if st.button("✍️ Input dengan Konten", use_container_width=True):
+        st.switch_page(pages["✍️ Input dengan Konten"])

@@ -156,6 +156,11 @@ if user_url:
 # Add spacing for better UI appearance
 st.markdown("<br><br>", unsafe_allow_html=True)
 
+pages = {
+    "✍️ Proses": "./pages/result.py",
+    "🔗 Input dengan Konten": "./pages/content.py"
+}
+
 # Button for "Proses"
 col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
@@ -163,7 +168,7 @@ with col2:
         if result:
             st.session_state.title = result["title"]
             st.session_state.content = result["content"]
-            switch_page("result")
+            st.switch_page(pages["✍️ Proses"])
         elif not scrape_failed:
             st.markdown(
                 "<p style='color: red;'>Data belum tersedia untuk diproses.</p>",
@@ -178,4 +183,4 @@ st.markdown("<br>", unsafe_allow_html=True)
 col4, col5, col6 = st.columns([1, 2, 1])
 with col5:
     if st.button("Input Using Judul dan Konten", use_container_width=True):
-        switch_page("content")  # Switch to the page named "process_konten"
+        st.switch_page(pages["🔗 Input dengan Kontenn"])

@@ -35,6 +35,12 @@ user_input_content = st.text_area(
 # Add spacing for better UI appearance
 st.markdown("<br><br>", unsafe_allow_html=True)
 
+
+pages = {
+    "✍️ Proses": "./pages/result.py",
+    "🔗 Input dengan Link": "./pages/link.py"
+}
+
 # Tombol Proses
 col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
@@ -50,7 +56,7 @@ with col2:
             st.session_state.content = user_input_content
 
             # Pindah ke halaman result
-            switch_page("result")
+            st.switch_page(pages["✍️ Proses"])
     
 
 # Add spacing between buttons
@@ -60,4 +66,6 @@ st.markdown("<br>", unsafe_allow_html=True)
 col4, col5, col6 = st.columns([1, 2, 1])
 with col5:
     if st.button("Input Using Link", use_container_width=True):
-        switch_page("link")  # Switch to the page named "link"
+        st.switch_page(pages["🔗 Input dengan Link"])
+
+
