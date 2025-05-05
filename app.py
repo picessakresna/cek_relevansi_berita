@@ -76,12 +76,16 @@ with col4:
 from streamlit_extras.switch_page_button import switch_page
 
 st.markdown("---")
-st.subheader("Navigasi Halaman")
 
+pages = {
+    "🔗 Input dengan Link": "./pages/link.py",
+    "✍️ Input dengan Konten": "./pages/content.py"
+}
+
+# Tombol untuk pindah halaman
 colA, colB, colC = st.columns([2, 1, 2])
 with colB:
     if st.button("🔗 Input dengan Link", use_container_width=True):
-        switch_page("link")  # pastikan nama file = pages/link.py
-
+        st.switch_page(pages["🔗 Input dengan Link"])
     if st.button("✍️ Input dengan Konten", use_container_width=True):
-        switch_page("content")  # pastikan nama file = pages/content.py
+        st.switch_page(pages["✍️ Input dengan Konten"])
