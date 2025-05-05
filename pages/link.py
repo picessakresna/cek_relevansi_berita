@@ -183,4 +183,4 @@ st.markdown("<br>", unsafe_allow_html=True)
 col4, col5, col6 = st.columns([1, 2, 1])
 with col5:
     if st.button("Input Using Judul dan Konten", use_container_width=True):
-        st.switch_page(pages["🔗 Input dengan Kontenn"])
+        st.switch_page(pages["🔗 Input dengan Konten"])
