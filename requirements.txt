@@ -11,3 +11,4 @@ beautifulsoup4
 bert-extractive-summarizer
 nltk
 huggingface-hub
+streamlit-extras
