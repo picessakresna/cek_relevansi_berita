@@ -17,6 +17,7 @@ st.write(
     Selamat datang di aplikasi Klasifikasi Berita! 
     Aplikasi ini dirancang untuk membantu Anda menganalisis dan mengklasifikasikan berita berdasarkan kategori tertentu.
     Gunakan tombol di bawah untuk masuk ke halaman input data.
+    Model ini dibangun dan dilatih menggunakan total 14.316 data berita
     """
 )
 
